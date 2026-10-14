@@ -62,7 +62,7 @@ gh pr create --repo NCUHOME/wechat-qa-layout --base main --head <自己的GitHub
 
 **用户没有 GitHub 账号，或者没装 gh**：把 `推文模板/<模板名>/` 打包发给维护人，请维护人代为提交。
 
-PR 说明照仓库里的 `.github/pull_request_template.md` 填，把缩略图也贴上去。
+PR 说明照仓库里的 `.github/pull_request_template.md` 填，把缩略图也贴上去。提交后 GitHub 会自动跑一遍模板检查，结果显示在 PR 页面上；没通过就按报错修好再推。
 
 ## 4. 合并之后
 

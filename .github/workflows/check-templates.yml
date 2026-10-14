@@ -1,0 +1,19 @@
+name: 模板检查
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 模板库检查（旧模板的生成结果不能变）
+        run: python3 skills/wechat-qa-layout/scripts/check_templates.py
+      - name: 示例文案的排版规范
+        run: python3 skills/wechat-qa-layout/scripts/build.py --check skills/wechat-qa-layout/examples/*.md skills/wechat-qa-layout/templates/*/example.md

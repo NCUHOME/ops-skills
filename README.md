@@ -86,7 +86,7 @@ npx skills update
 
 做了新版式，Claude 会问要不要存进模板库，同意后它会自动帮你提 PR。手动提交的步骤见 [`references/CONTRIBUTE.md`](skills/wechat-qa-layout/references/CONTRIBUTE.md)：
 
-1. 所有模板都通过 PR 合并，由维护人审核。
+1. 所有模板都通过 PR 合并，由维护人审核。PR 会自动跑模板检查。
 2. 提交前必须跑 `check_templates.py`，旧模板的生成结果一个字节都不能变。
 3. 图片要用公众号图床链接，并写清版权归属。
 
