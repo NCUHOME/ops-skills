@@ -2,22 +2,26 @@
 """问答文案（Markdown）→ 公众号推文排版代码 + 手机预览页。
 
 用法：
-  python3 build.py 文章.md [更多.md ...] [-o 输出目录] [--template 版式.json] [--check]
+  python3 build.py 文章.md [更多.md ...] [-o 输出目录] [--template 模板] [--check]
 
   -o / --out   输出目录，默认与第一篇 .md 相同
-  --template   版式文件，默认 templates/jwdy.json（教务答疑直通车·第三期版式）
+  --template   模板：templates/ 下的模板名（如 jwdy），或模板文件夹路径。
+               不写就用文案信息区里的「模板」，再没有就用 jwdy
   --check      只检查排版规范（问题最多两行等），不生成文件；有问题时退出码为 1
 
 输出：
   <文件名>.html   每篇一个，粘贴进公众号编辑器的正文代码（只有行内样式，公众号能保留）
   预览.html       手机宽度预览、一键复制、四种屏宽自动自检
 
+一个模板是一个文件夹：template.json（颜色、图片、头图叠层、字数限制）＋ 可选的 components.py
+（结构和默认不同时，覆盖下面 DEFAULT 里的构件函数）。见 references/NEW-LAYOUT.md。
 文案写法见 references/FORMAT.md。只用 Python 标准库；装了 ffmpeg 时会自动读取视频时长、截封面帧。
 """
 
 import argparse
 import base64
 import html
+import importlib.util
 import json
 import re
 import shutil
@@ -26,16 +30,68 @@ import sys
 import tempfile
 from pathlib import Path
 
+sys.dont_write_bytecode = True  # 载入模板的 components.py 时，不在模板文件夹里留 __pycache__
 SKILL_DIR = Path(__file__).resolve().parent.parent
+TEMPLATES = SKILL_DIR / "templates"
+DEFAULT_TEMPLATE = "jwdy"
 BB = "box-sizing: border-box;"
-T = {}  # 当前版式，main() 里载入
+T = {}     # 当前模板的配置（template.json）
+COMP = {}  # 当前模板的构件函数：默认实现 + components.py 的覆盖
 
-
-# ───────────────────────────── 文案解析 ─────────────────────────────
 
 def fail(msg):
     sys.exit(f"✗ {msg}")
 
+
+# ───────────────────────────── 模板 ─────────────────────────────
+
+def list_templates():
+    """模板库里的全部模板，按 order 排序：[(模板名, 配置)]"""
+    out = []
+    for d in TEMPLATES.iterdir():
+        if (d / "template.json").is_file():
+            out.append((d.name, json.loads((d / "template.json").read_text(encoding="utf-8"))))
+    return sorted(out, key=lambda x: (x[1].get("order", 999), x[0]))
+
+
+def find_template(spec, base=Path(".")):
+    """模板名或路径 → 模板文件夹。路径可以相对当前目录或文案所在目录。"""
+    for cand in (Path(spec), base / spec):
+        if (cand / "template.json").is_file():
+            return cand.resolve()
+    if (TEMPLATES / spec / "template.json").is_file():
+        return TEMPLATES / spec
+    fail(f"找不到模板「{spec}」。模板库里有：{'、'.join(n for n, _ in list_templates())}")
+
+
+_loaded = {}
+
+
+def load_template(folder):
+    folder = Path(folder).resolve()
+    if folder not in _loaded:
+        cfg = json.loads((folder / "template.json").read_text(encoding="utf-8"))
+        comps = {}
+        py = folder / "components.py"
+        if py.is_file():
+            spec = importlib.util.spec_from_file_location(f"template_{folder.name}", py)
+            mod = importlib.util.module_from_spec(spec)
+            mod.__dict__.update(API)  # 构件里可以直接用 E、P、rich、img、T、DEFAULT 等
+            spec.loader.exec_module(mod)
+            comps = {k: getattr(mod, k) for k in DEFAULT if callable(getattr(mod, k, None))}
+        _loaded[folder] = {"id": folder.name, "dir": folder, "cfg": cfg, "comps": comps}
+    return _loaded[folder]
+
+
+def use_template(tpl):
+    T.clear()
+    T.update(tpl["cfg"])
+    COMP.clear()
+    COMP.update(DEFAULT)
+    COMP.update(tpl["comps"])
+
+
+# ───────────────────────────── 文案解析 ─────────────────────────────
 
 def parse_article(path):
     """读一篇文案 .md → {meta, sections:[{title, paras, qas:[{q:[行], a:[段]}]}], tip:[行]|None}"""
@@ -102,7 +158,7 @@ def width_em(s):
 
 
 def lint(a):
-    """排版硬性要求（见 SKILL.md）。返回问题列表，空表示合规。"""
+    """排版硬性要求（见 SKILL.md），限制值取自当前模板。返回问题列表，空表示合规。"""
     L, out = T["limits"], []
     head = a["meta"]["头图"].split(" / ")
     if len(head) > L["header_lines"]:
@@ -206,7 +262,7 @@ def P(style, text):
 
 
 def chk(pv, kind):
-    """预览版给构件打标记，供预览页自检定位；粘贴版不带。"""
+    """预览版给构件打标记，供预览页自检定位；粘贴版不带。kind：q 问题框 / title 分区标题 / ans 答案。"""
     return {"data-chk": kind} if pv else None
 
 
@@ -239,6 +295,10 @@ def svg_text_layer(y, h, text_style, *paras):
                       "viewBox": f"0 0 {vw} {vh}"}))
 
 
+def br():
+    return E("p", f"white-space: normal; margin: 0px; padding: 0px; {BB}", "<br>", inline=True)
+
+
 def header(a):
     H, C = T["header"], T["colors"]
     vw, vh = H["viewbox"]
@@ -265,10 +325,6 @@ def header(a):
              *[header_layer(*l) for l in H["front_layers"]], spacer)
 
 
-def br():
-    return E("p", f"white-space: normal; margin: 0px; padding: 0px; {BB}", "<br>", inline=True)
-
-
 def video_blocks(a, pv):
     if not a["meta"].get("视频"):
         return []
@@ -280,18 +336,22 @@ def video_blocks(a, pv):
                           f"border-radius: 5px; overflow: hidden; {BB}",
                E("section", f"color: {C['main']}; letter-spacing: 1px; font-size: 14px; {BB}",
                  P(f"margin: 0px; padding: 0px; {BB}", f"**{a['meta'].get('视频提示', T['video_hint'])}**"))))
-    if pv:  # 预览页：仿公众号播放器
-        slot = E("section", None, E("div", None, attrs={
+    return [hint, br(), COMP["video_slot"](a, pv, name, length, poster), br()]
+
+
+def video_slot(a, pv, name, length, poster):
+    """视频位置。预览页：仿公众号播放器；粘贴版：占位框，进编辑器后在此插入视频并删掉。各模板通用，一般不用覆盖。"""
+    if pv:
+        return E("section", None, E("div", None, attrs={
             "class": "mock-video", "data-len": length, "style": f"background-image: url('{poster}');" if poster else ""}))
-    else:   # 粘贴版：占位框，进编辑器后在此插入视频并删掉
-        grey = f"margin: 0px; padding: 0px; color: rgb(153, 153, 153); font-size: 12px; {BB}"
-        slot = E("section", f"border: 2px dashed {C['accent']}; background-color: rgb(255, 255, 255); padding: 36px 12px; "
-                            f"text-align: center; {BB}",
-                 P(f"margin: 0px; padding: 0px; color: {C['main']}; font-size: 15px; letter-spacing: 1px; {BB}",
-                   "**▶ 在此插入视频（插入后删除本框）**"),
-                 P(grey.replace("margin: 0px", "margin: 6px 0px 0px"), f"{a['meta']['标题']}　{length}".strip()),
-                 *([P(grey, name)] if name else []))
-    return [hint, br(), slot, br()]
+    C = T["colors"]
+    grey = f"margin: 0px; padding: 0px; color: rgb(153, 153, 153); font-size: 12px; {BB}"
+    return E("section", f"border: 2px dashed {C['accent']}; background-color: rgb(255, 255, 255); padding: 36px 12px; "
+                        f"text-align: center; {BB}",
+             P(f"margin: 0px; padding: 0px; color: {C['main']}; font-size: 15px; letter-spacing: 1px; {BB}",
+               "**▶ 在此插入视频（插入后删除本框）**"),
+             P(grey.replace("margin: 0px", "margin: 6px 0px 0px"), f"{a['meta']['标题']}　{length}".strip()),
+             *([P(grey, name)] if name else []))
 
 
 def section_title(text, pv):
@@ -355,9 +415,9 @@ def paragraphs(paras, indent, pv):
 
 
 def card(sec, pv):
-    body = [paragraphs(sec["paras"], "2em", pv)] if sec["paras"] else []
+    body = [COMP["paragraphs"](sec["paras"], "2em", pv)] if sec["paras"] else []
     for i, qa in enumerate(sec["qas"]):
-        body += [question(i + 1, qa["q"], i == 0 and not body, pv), paragraphs(qa["a"], "2.4em", pv)]
+        body += [COMP["question"](i + 1, qa["q"], i == 0 and not body, pv), COMP["paragraphs"](qa["a"], "2.4em", pv)]
     return E("section", f"text-align: center; justify-content: center; display: flex; flex-flow: row; {BB}",
              E("section", f"display: inline-block; width: 90%; vertical-align: top; align-self: flex-start; flex: 0 0 auto; "
                           f"height: auto; border-style: solid; border-width: 1px; border-color: {T['colors']['card_border']}; "
@@ -372,14 +432,23 @@ def tip(lines):
 
 def article_html(a, pv=False):
     C = T["colors"]
-    blocks = [header(a), *video_blocks(a, pv)]
+    blocks = [COMP["header"](a), *COMP["video_blocks"](a, pv)]
     for sec in a["sections"]:
-        blocks += [section_title(sec["title"], pv), card(sec, pv)]
+        blocks += [COMP["section_title"](sec["title"], pv), COMP["card"](sec, pv)]
     if a["tip"]:
-        blocks.append(tip(a["tip"]))
+        blocks.append(COMP["tip"](a["tip"]))
     blocks.append(br())
     return E("section", f"background-color: {C['page_bg']}; {BB} font-style: normal; font-weight: 400; "
                         f"text-align: justify; font-size: 16px; color: {C['text']};", *blocks)
+
+
+# 模板的 components.py 可以覆盖其中任意几个（同名函数）；没覆盖的用默认实现
+DEFAULT = {f.__name__: f for f in (header, video_blocks, video_slot, section_title, question,
+                                   paragraphs, card, tip, article_html)}
+# components.py 里可直接使用的名字
+API = {"E": E, "P": P, "rich": rich, "img": img, "br": br, "chk": chk, "BB": BB, "T": T, "COMP": COMP,
+       "DEFAULT": DEFAULT, "header_layer": header_layer, "svg_text_layer": svg_text_layer,
+       "video_info": video_info, "width_em": width_em, "re": re}
 
 
 def plain_text(a):
@@ -396,6 +465,18 @@ def plain_text(a):
     return "\n".join(out)
 
 
+def render_article(path, template=None):
+    """读文案、选模板、生成。返回 {a, tpl, lint, code（粘贴版，缩进）, code_min（粘贴版，一行）, preview}。"""
+    a = parse_article(Path(path))
+    spec = template or a["meta"].get("模板") or DEFAULT_TEMPLATE
+    tpl = load_template(find_template(spec, a["path"].parent))
+    use_template(tpl)
+    return {"a": a, "tpl": tpl, "lint": lint(a),
+            "code": COMP["article_html"](a).render(pretty=True),
+            "code_min": COMP["article_html"](a).render(pretty=False),
+            "preview": COMP["article_html"](a, True).render(pretty=False)}
+
+
 # ───────────────────────────── 输出 ─────────────────────────────
 
 def main():
@@ -405,43 +486,42 @@ def main():
     ap = argparse.ArgumentParser(description="问答文案 .md → 公众号推文排版代码 + 预览页")
     ap.add_argument("articles", nargs="+", type=Path, help="文案 .md 文件")
     ap.add_argument("-o", "--out", type=Path, help="输出目录（默认与第一篇 .md 相同）")
-    ap.add_argument("--template", type=Path, default=SKILL_DIR / "templates" / "jwdy.json", help="版式文件")
+    ap.add_argument("--template", help="模板名或模板文件夹（默认看文案信息区的「模板」，再没有用 jwdy）")
     ap.add_argument("--check", action="store_true", help="只检查排版规范，不生成文件")
     args = ap.parse_args()
 
-    T.update(json.loads(args.template.read_text(encoding="utf-8")))
-    arts = [parse_article(p) for p in args.articles]
-
+    results = [render_article(p, args.template) for p in args.articles]
     problems = 0
-    for a in arts:
-        for w in lint(a):
-            print(f"⚠️  {a['path'].name}｜{w}")
+    for r in results:
+        for w in r["lint"]:
+            print(f"⚠️  {r['a']['path'].name}｜{w}")
             problems += 1
     if args.check:
         print("✓ 排版规范检查通过" if not problems else f"共 {problems} 处不合规")
         sys.exit(1 if problems else 0)
 
-    out = args.out or arts[0]["path"].parent
+    out = args.out or results[0]["a"]["path"].parent
     out.mkdir(parents=True, exist_ok=True)
     payload = []
-    for a in arts:
-        code = article_html(a).render(pretty=True)
+    for r in results:
+        a, cfg = r["a"], r["tpl"]["cfg"]
         name = a["meta"].get("视频", "")
-        head = f"<!-- {a['meta']['标题']}"
+        head = f"<!-- {a['meta']['标题']}｜模板：{cfg['name']}"
         head += f"\n     粘贴后在黄色虚线框处插入视频（{Path(name).name}）并删掉虚线框 -->\n" if name else " -->\n"
         target = out / f"{a['path'].stem}.html"
-        target.write_text(head + code + "\n", encoding="utf-8")
+        target.write_text(head + r["code"] + "\n", encoding="utf-8")
         print(f"写入 {target}")
         payload.append({
             "name": a["path"].stem,
+            "template": cfg["name"],
+            "account": cfg.get("account", ""),
             "title": a["meta"]["标题"],
-            "html": article_html(a).render(pretty=False),  # 复制用：压成一行
+            "html": r["code_min"],  # 复制用：压成一行
             "text": plain_text(a),
-            "preview": article_html(a, pv=True).render(pretty=False),
-            "lint": lint(a),
+            "preview": r["preview"],
+            "lint": r["lint"],
         })
     page = PREVIEW.replace("/*__DATA__*/null", json.dumps(payload, ensure_ascii=False).replace("</", "<\\/"))
-    page = page.replace("__ACCOUNT__", html.escape(T["account"]))
     (out / "预览.html").write_text(page, encoding="utf-8")
     print(f"写入 {out / '预览.html'}" + ("" if not problems else f"（有 {problems} 处不合规，见上方 ⚠️）"))
 
@@ -473,6 +553,7 @@ body { margin: 0; background: var(--page); color: var(--ink);
 .cols { display: flex; flex-wrap: wrap; justify-content: center; gap: 36px; padding: 18px 16px 48px; }
 .col { width: var(--phone); max-width: 100%; }
 .col h2 { font-size: 16px; margin: 0 0 8px; }
+.col h2 small { font-weight: 400; color: var(--muted); margin-left: 6px; }
 .actions { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
 .actions button { font: inherit; font-size: 13px; padding: 5px 12px; border-radius: 999px; cursor: pointer;
   border: 1px solid var(--green); background: #fff; color: var(--green); }
@@ -546,6 +627,19 @@ function copy(html, text) {
 
 const setPhone = w => document.documentElement.style.setProperty('--phone', w + 'px');
 
+// 元素里的文字排成了几行：只看文字（不看装饰图片和块元素），上沿相差 3px 以内算同一行
+function lineCount(el) {
+  const tops = [];
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  for (let n; (n = walker.nextNode());) {
+    if (!n.data.trim()) continue;
+    const r = document.createRange(); r.selectNodeContents(n);
+    for (const x of r.getClientRects()) if (x.width > 0) tops.push(x.top);
+  }
+  tops.sort((m, n) => m - n);
+  return tops.filter((t, i) => i === 0 || t - tops[i - 1] > 3).length;
+}
+
 // 两端对齐被撑开的行：该行汉字平均占宽比“字号 + 字距”多出 4px 以上
 function stretchedLines(p) {
   const cs = getComputedStyle(p);
@@ -579,11 +673,11 @@ function selfCheck(content) {
     const cr = content.getBoundingClientRect();
     if (content.scrollWidth > content.clientWidth + 1) errors.push(`${w}px：内容横向溢出`);
     content.querySelectorAll('[data-chk="q"] p').forEach(p => {
-      if (p.querySelector('strong').getClientRects().length > 1) errors.push(`${w}px：问题折行「${p.textContent}」`);
+      if (lineCount(p) > 1) errors.push(`${w}px：问题折行「${p.textContent}」`);
     });
     content.querySelectorAll('[data-chk="title"]').forEach(t => {
       const r = t.getBoundingClientRect();
-      if (t.querySelector('strong').getClientRects().length > 1 || r.left < cr.left - 0.5 || r.right > cr.right + 0.5)
+      if (lineCount(t) > 1 || r.left < cr.left - 0.5 || r.right > cr.right + 0.5)
         errors.push(`${w}px：分区标题放不下「${t.textContent}」`);
     });
     content.querySelectorAll('[data-chk="ans"] p').forEach(p => {
@@ -599,7 +693,7 @@ for (const a of DATA) {
   const col = document.createElement('div');
   col.className = 'col';
   col.innerHTML = `
-    <h2></h2>
+    <h2><span></span><small></small></h2>
     <div class="actions">
       <button class="primary" data-act="rich">复制排版</button>
       <button data-act="html">复制源码</button>
@@ -608,11 +702,13 @@ for (const a of DATA) {
     <details class="check"><summary></summary><ul></ul></details>
     <div class="phone"><div class="screen"><div class="rich_media_area_primary">
       <h1 class="rich_media_title"></h1>
-      <div class="rich_media_meta">__ACCOUNT__</div>
+      <div class="rich_media_meta"></div>
       <div class="rich_media_content">${a.preview}</div>
     </div></div></div>`;
-  col.querySelector('h2').textContent = a.name;
+  col.querySelector('h2 span').textContent = a.name;
+  col.querySelector('h2 small').textContent = '模板：' + a.template;
   col.querySelector('.rich_media_title').textContent = a.title;
+  col.querySelector('.rich_media_meta').textContent = a.account;
   col.querySelector('.actions').addEventListener('click', e => {
     const act = e.target.dataset.act;
     if (!act) return;
@@ -621,14 +717,14 @@ for (const a of DATA) {
              : '复制失败，请改用对应的 .html 文件');
   });
   cols.appendChild(col);
-  col.check = a.lint;
+  col.lint = a.lint;
 }
 
 // 图片加载完再自检（头图高度会影响布局）
 window.addEventListener('load', () => {
   for (const col of cols.children) {
     const { errors, hints } = selfCheck(col.querySelector('.rich_media_content'));
-    const all = [...col.check.map(x => '规范：' + x), ...errors];
+    const all = [...col.lint.map(x => '规范：' + x), ...errors];
     const box = col.querySelector('.check');
     box.classList.toggle('bad', all.length > 0);
     box.querySelector('summary').textContent = all.length
