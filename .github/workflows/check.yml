@@ -1,4 +1,4 @@
-name: 模板检查
+name: 检查
 
 on:
   pull_request:
@@ -17,3 +17,5 @@ jobs:
         run: python3 skills/wechat-qa-layout/scripts/check_templates.py
       - name: 示例文案的排版规范
         run: python3 skills/wechat-qa-layout/scripts/build.py --check skills/wechat-qa-layout/examples/*.md skills/wechat-qa-layout/templates/*/example.md
+      - name: 做视频 skill 的脚本语法
+        run: bash -n skills/explainer-video/scripts/workspace.sh

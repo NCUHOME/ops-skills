@@ -1,6 +1,6 @@
 # 把新模板存进模板库（提 PR）
 
-模板库在 https://github.com/NCUHOME/wechat-qa-layout ，收任何单位的版式。所有改动都要提 PR，由维护人审核后合并。**绝不直接推到 main。**
+模板库在 https://github.com/NCUHOME/ops-skills （运营组 skill 合集）的 `skills/wechat-qa-layout/templates/`，收任何单位的版式。所有改动都要提 PR，由维护人审核后合并。**绝不直接推到 main。**
 
 只有用户同意存进模板库，才按下面的步骤做。
 
@@ -21,8 +21,8 @@
 ## 2. 在仓库副本里加模板
 
 ```bash
-gh repo clone NCUHOME/wechat-qa-layout ~/wechat-qa-layout   # 已经有了就 cd 进去 git switch main && git pull
-cd ~/wechat-qa-layout
+gh repo clone NCUHOME/ops-skills ~/ops-skills   # 已经有了就 cd 进去 git switch main && git pull
+cd ~/ops-skills
 git switch -c template/<模板名>
 cp -R <工作文件夹>/推文模板/<模板名> skills/wechat-qa-layout/templates/<模板名>
 cd skills/wechat-qa-layout
@@ -44,11 +44,11 @@ git add -A
 git commit -m "新模板：<名称>（<公众号>）"
 ```
 
-**有仓库写权限**（`gh api repos/NCUHOME/wechat-qa-layout --jq .permissions.push` 输出 `true`）：
+**有仓库写权限**（`gh api repos/NCUHOME/ops-skills --jq .permissions.push` 输出 `true`）：
 
 ```bash
 git push -u origin template/<模板名>
-gh pr create --repo NCUHOME/wechat-qa-layout --base main --title "新模板：<名称>" --body-file <填好的说明>
+gh pr create --repo NCUHOME/ops-skills --base main --title "新模板：<名称>" --body-file <填好的说明>
 ```
 
 **没有写权限**：
@@ -56,7 +56,7 @@ gh pr create --repo NCUHOME/wechat-qa-layout --base main --title "新模板：<�
 ```bash
 gh repo fork --remote                     # 原仓库变成 upstream，自己的 fork 变成 origin
 git push -u origin template/<模板名>
-gh pr create --repo NCUHOME/wechat-qa-layout --base main --head <自己的GitHub用户名>:template/<模板名> \
+gh pr create --repo NCUHOME/ops-skills --base main --head <自己的GitHub用户名>:template/<模板名> \
   --title "新模板：<名称>" --body-file <填好的说明>
 ```
 
