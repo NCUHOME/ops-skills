@@ -1,0 +1,5 @@
+.DS_Store
+__pycache__/
+*.pyc
+# 在 examples/ 里直接生成时的产物
+skills/wechat-qa-layout/examples/*.html
