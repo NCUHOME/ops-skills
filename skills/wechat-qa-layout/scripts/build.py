@@ -109,7 +109,7 @@ def parse_article(path):
         if not meta.get(key):
             fail(f"{path.name}：开头 --- 信息区缺少「{key}」")
 
-    sections, tip = [], None
+    sections, tip, summary = [], None, None
     sec = target = None
     cont = False  # 上一行以 \ 结尾：本行并入同一段
     for no, raw in enumerate(src.splitlines(), 1):
@@ -122,6 +122,9 @@ def parse_article(path):
             if name == "温馨提示":
                 tip, sec = [], None
                 target = tip
+            elif name in ("最后再次划重点", "划重点"):
+                summary, sec = [], None
+                target = summary
             else:
                 sec = {"title": name, "paras": [], "qas": []}
                 sections.append(sec)
@@ -148,7 +151,7 @@ def parse_article(path):
         cont = hard
     if not sections:
         fail(f"{path.name}：没有任何「## 分区」")
-    return {"path": path, "meta": meta, "sections": sections, "tip": tip}
+    return {"path": path, "meta": meta, "sections": sections, "tip": tip, "summary": summary}
 
 
 def width_em(s):
@@ -177,7 +180,8 @@ def lint(a):
                     out.append(f"问题单行超过 {L['question_line_chars']} 字（360px 手机会折行）：{line}")
             if not qa["a"]:
                 out.append(f"问题没有答案：{q}")
-    texts = [p for s in a["sections"] for p in s["paras"] + [x for qa in s["qas"] for x in qa["a"]]] + (a["tip"] or [])
+    texts = ([p for s in a["sections"] for p in s["paras"] + [x for qa in s["qas"] for x in qa["a"]]]
+             + (a["tip"] or []) + (a["summary"] or []))
     for t in texts:
         if t.count("**") % 2 or t.count("`") % 2:
             out.append(f"加粗 ** 或反引号 ` 没有成对：{t[:30]}…")
@@ -304,12 +308,15 @@ def header(a):
     vw, vh = H["viewbox"]
     box = H["title_box"]
     lines = [s.strip() for s in a["meta"]["头图"].split(" / ") if s.strip()]
-    fs = min(box["max_font"], round(vw * box["width_ratio"] / max(width_em(l) for l in lines)))
-    h = len(lines) * fs * 1.4 / vh * 100
+    lh = 1.4 if len(lines) <= 2 else 1.3  # 三行时收紧行高，放进同一个标题框
+    by_width = vw * box["width_ratio"] / max(width_em(l) for l in lines)
+    by_height = box["height"] / 100 * vh / (len(lines) * lh)
+    fs = min(box["max_font"], round(by_width), round(by_height))
+    h = len(lines) * fs * lh / vh * 100
     y = box["y"] + (box["height"] - h) / 2  # 在标题框内垂直居中
     ps = f"margin: 0px; padding: 0px; {BB}"
     title = svg_text_layer(y, h, f"font-size: {fs}px; color: {C['main']}; text-align: center; word-break: break-word; "
-                                 f"line-height: 1.4; {BB}", *[P(ps, f"**{l}**") for l in lines])
+                                 f"line-height: {lh}; {BB}", *[P(ps, f"**{l}**") for l in lines])
     series = a["meta"].get("栏目", T["series"])
     episode = a["meta"].get("期数", "")
     sb = H["subtitle_box"]
@@ -430,11 +437,28 @@ def tip(lines):
                                     for l in [T["tip_heading"]] + lines])
 
 
+def summary(paras, pv):
+    """结尾「最后再次划重点」总结框：浅色外框 + 白底细边内框，字号与答案一致。"""
+    C = T["colors"]
+    ps = f"text-indent: 2em; white-space: normal; margin: 0px; padding: 0px; {BB}"
+    return E("section", f"text-align: center; justify-content: center; display: flex; flex-flow: row; margin: 40px 0px 0px; {BB}",
+             E("section", f"display: inline-block; width: 90%; vertical-align: top; align-self: flex-start; flex: 0 0 auto; "
+                          f"background-color: {C['hint_bg']}; padding: 6px; {BB}",
+               E("section", f"border: 1px solid {C['card_border']}; background-color: rgb(255, 255, 255); "
+                            f"padding: 18px 16px; text-align: justify; {BB}",
+                 P(f"margin: 0px 0px 6px; padding: 0px; color: {C['main']}; font-size: 15px; letter-spacing: 1px; {BB}",
+                   T.get("summary_heading", "💡**最后再次划重点：**")),
+                 E("section", f"font-size: 14px; line-height: 1.85; letter-spacing: 2px; {BB}",
+                   *[P(ps, t) for t in paras], attrs=chk(pv, "ans")))))
+
+
 def article_html(a, pv=False):
     C = T["colors"]
     blocks = [COMP["header"](a), *COMP["video_blocks"](a, pv)]
     for sec in a["sections"]:
         blocks += [COMP["section_title"](sec["title"], pv), COMP["card"](sec, pv)]
+    if a["summary"]:
+        blocks.append(COMP["summary"](a["summary"], pv))
     if a["tip"]:
         blocks.append(COMP["tip"](a["tip"]))
     blocks.append(br())
@@ -444,7 +468,7 @@ def article_html(a, pv=False):
 
 # 模板的 components.py 可以覆盖其中任意几个（同名函数）；没覆盖的用默认实现
 DEFAULT = {f.__name__: f for f in (header, video_blocks, video_slot, section_title, question,
-                                   paragraphs, card, tip, article_html)}
+                                   paragraphs, card, summary, tip, article_html)}
 # components.py 里可直接使用的名字
 API = {"E": E, "P": P, "rich": rich, "img": img, "br": br, "chk": chk, "BB": BB, "T": T, "COMP": COMP,
        "DEFAULT": DEFAULT, "header_layer": header_layer, "svg_text_layer": svg_text_layer,
@@ -461,6 +485,8 @@ def plain_text(a):
             out.append(f"{i + 1:02d} {''.join(qa['q'])}")
             out += [clean(p) for p in qa["a"]]
         out.append("")
+    if a["summary"]:
+        out += ["最后再次划重点："] + [clean(p) for p in a["summary"]]
     out += [clean(l) for l in (a["tip"] or [])]
     return "\n".join(out)
 
