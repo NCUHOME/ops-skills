@@ -38,6 +38,7 @@ python3 scripts/outline.py 参考.html --images   # 全部图片链接，按出�
 | `header` | 头图叠层：每层是 `[宽%, 高%, 左边距%, 上边距%, 字号px, 图片名]`，标题框、副标题框的位置 |
 | `section_deco` | 分区标题两侧装饰图 |
 | `limits` | 字数限制，见第 5 步 |
+| `cover` | 封面样式（`scripts/cover.py` 用），目前内置 `photo`（清爽实景）一种：logo 图片、底图（`photo`：文件、来源、`zoom` 放大、`up` 上移、`left` 左移、`flip` 翻转）、配色（`colors`）。底图要用免费可商用的实拍照片，并在 `credit` 写清来源和许可 |
 
 **结构不同**（卡片、问题行、标题样式都不一样）：除了改 `template.json`，再写 `components.py`，用同名函数覆盖 `build.py` 里 `DEFAULT` 中的构件。没覆盖的构件沿用默认实现。
 
@@ -63,6 +64,7 @@ def section_title(text, pv):
 | `question(n, lines, first, pv)` | 问题行：编号和问题框 |
 | `paragraphs(paras, indent, pv)` | 答案或普通段落 |
 | `card(sec, pv)` | 一个分区的卡片 |
+| `summary(paras, pv)` | 结尾「最后再次划重点」总结框 |
 | `tip(lines)` | 结尾温馨提示 |
 | `article_html(a, pv)` | 整篇结构 |
 

@@ -12,7 +12,6 @@
   "series": "教务答疑直通车",
   "video_hint": "（点击下方观看动画短片）",
   "tip_heading": "💡**温馨提示：**",
-
   "colors": {
     "main": "rgb(67, 156, 75)",
     "accent": "rgb(255, 194, 82)",
@@ -23,7 +22,6 @@
     "hint_bg": "rgb(222, 243, 220)",
     "card_border": "rgb(196, 230, 191)"
   },
-
   "images": {
     "wave_r": "https://mmbiz.qpic.cn/mmbiz_png/toTkQ9hHJLNcCEpx3WBTQ8pbR9LO3p7133fxCORrib67Z852JqUtZpNVfgECIiaHg7ibVcfZdLyxBYaLiaskQd2cQRf0WaZPloX9TDHRj9MsGPs/640?wx_fmt=png",
     "wave_l": "https://mmbiz.qpic.cn/sz_mmbiz_png/toTkQ9hHJLPL09zQkxtes0DlBylWWsXEUOicklSibq2OBib4TjtBPhkfyJvKpOncBQhhet1GgmibSiavicPpvfmMSZVZGhOwJn8SYAfnkRMlXObF0/640?wx_fmt=png",
@@ -35,7 +33,6 @@
     "book": "https://mmbiz.qpic.cn/mmbiz_png/toTkQ9hHJLOm54yXYllxQ154TicYtfnXBOEZp7uWTu4OgRKUTAUnS8RG3ic9T5AgMDrUn6C0OhLY8BDRgUJ1I6jdjLy6tm63qm4kUQE8OlokY/640?wx_fmt=png",
     "yellow_dots": "https://mmbiz.qpic.cn/sz_mmbiz_png/toTkQ9hHJLPzFaUXYqBsRKe2jeRD2cicWJ4UlCec38jFZJ4MFgyF3RbwiaGCibzpoWG78CLKPKjCkL19xdjqqR9Z7VQ3uwhdhsZ5AMgtC6PjuE/640?wx_fmt=png"
   },
-
   "header": {
     "aspect_ratio": "1.7143 / 1",
     "padding_top": "58.3333%",
@@ -54,17 +51,48 @@
     "front_layers": [
       [47.2289, 21.5186, 23.6115, 8.43664, 9, "logo"]
     ],
-    "title_box": {"y": 35.940191884519, "height": 41.64, "max_font": 33, "width_ratio": 0.82},
-    "subtitle_box": {"y": 80.160217053069, "height": 10.74, "font": 15}
+    "title_box": {
+      "y": 35.940191884519,
+      "height": 41.64,
+      "max_font": 33,
+      "width_ratio": 0.82
+    },
+    "subtitle_box": {
+      "y": 80.160217053069,
+      "height": 10.74,
+      "font": 15
+    }
   },
-
-  "section_deco": {"left": "book", "right": "yellow_dots"},
-
+  "section_deco": {
+    "left": "book",
+    "right": "yellow_dots"
+  },
   "limits": {
     "note": "按 360px 宽手机算：正文宽 328px → 卡片内问题框约 208px，16px 字 + 1px 字距 ≈ 12 字一行",
     "question_lines": 2,
     "question_line_chars": 12,
     "section_title_chars": 15,
-    "header_lines": 2
+    "header_lines": 3
+  },
+  "summary_heading": "💡**最后再次划重点：**",
+  "cover": {
+    "note": "公众号封面（scripts/cover.py）：清爽实景——实拍照片在左、向右渐隐成浅蓝白，右边放 logo 和深蓝标题；不用 emoji、不用手绘图标",
+    "style": "photo",
+    "logo": "cover_logo.png",
+    "photo": {
+      "file": "cover_photo.jpg",
+      "credit": "Unsplash：white and blue stadium under blue sky during daytime（XP2goMOgHX8），Unsplash License，可免费商用、无需署名",
+      "zoom": 1.28,
+      "up": 0.42,
+      "flip": true
+    },
+    "colors": {
+      "bg": ["#EAF2FF", "#F5F9FF"],
+      "title": "#1B3F8F",
+      "subtitle": "#3A5487",
+      "bar": "#2658C4",
+      "big": ["#1B3F8F", "#2F6BE0"],
+      "tags": "#5A6E96"
+    }
   }
 }

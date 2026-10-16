@@ -4,7 +4,7 @@
 
 | skill | 做什么 | 怎么开始 | 库 |
 |---|---|---|---|
-| [推文排版 `wechat-qa-layout`](skills/wechat-qa-layout/) | 把问答文档（可配视频）排成公众号推文，生成可以直接粘贴进公众号编辑器的代码和手机预览页 | 输入 `/wechat-qa-layout`，或说「帮我排推文」 | **模板库**：选已有版式，或给一篇推文链接复刻新版式 |
+| [推文排版 `wechat-qa-layout`](skills/wechat-qa-layout/) | 把问答文档（可配视频）排成公众号推文，生成可以直接粘贴进公众号编辑器的代码、手机预览页和封面 | 输入 `/wechat-qa-layout`，或说「帮我排推文」 | **模板库**：选已有版式，或给一篇推文链接复刻新版式 |
 | [做视频 `explainer-video`](skills/explainer-video/) | 把通知、办事指南或常见问题文档，做成带单位品牌、AI 配音、字幕和原创配乐的动画说明视频 | 输入 `/explainer-video`，或说「做视频」 | **品牌库**：选已有单位品牌，或新建一个 |
 
 <table><tr>

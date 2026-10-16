@@ -30,6 +30,9 @@ def check(tid, cfg, update):
     errs += [f"template.json 缺少「{k}」" for k in KEYS if not cfg.get(k)]
     if isinstance(cfg.get("source"), dict) and not cfg["source"].get("title"):
         errs.append("template.json 的 source 要写参考推文标题（title）")
+    cover = cfg.get("cover") or {}
+    errs += [f"cover 用到的文件不存在：{f}" for f in (cover.get("logo"), (cover.get("photo") or {}).get("file"))
+             if f and not (d / f).is_file()]
     if not (d / "example.md").exists():
         return errs
     r = build.render_article(d / "example.md", template=str(d))
