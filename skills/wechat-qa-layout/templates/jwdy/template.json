@@ -76,15 +76,23 @@
   },
   "summary_heading": "💡**最后再次划重点：**",
   "cover": {
-    "note": "公众号封面（scripts/cover.py）：橙色秋叶样式，照「教务答疑直通车」往期封面重画",
-    "style": "autumn",
+    "note": "公众号封面（scripts/cover.py）：清爽实景——实拍照片在左、向右渐隐成浅蓝白，右边放 logo 和深蓝标题；不用 emoji、不用手绘图标",
+    "style": "photo",
     "logo": "cover_logo.png",
-    "title_color": "#E3602F",
-    "badge": {
-      "from": "#FFDB8E",
-      "to": "#F8B456",
-      "text": "#C8541E"
+    "photo": {
+      "file": "cover_photo.jpg",
+      "credit": "Unsplash：white and blue stadium under blue sky during daytime（XP2goMOgHX8），Unsplash License，可免费商用、无需署名",
+      "zoom": 1.28,
+      "up": 0.42,
+      "flip": true
     },
-    "background": ["#FFFBF4", "#FFF1DE", "#FCE3C4"]
+    "colors": {
+      "bg": ["#EAF2FF", "#F5F9FF"],
+      "title": "#1B3F8F",
+      "subtitle": "#3A5487",
+      "bar": "#2658C4",
+      "big": ["#1B3F8F", "#2F6BE0"],
+      "tags": "#5A6E96"
+    }
   }
 }
